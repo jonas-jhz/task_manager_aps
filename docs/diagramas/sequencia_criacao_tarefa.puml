@@ -1,0 +1,25 @@
+@startuml
+actor User
+participant "TaskManagerApp" as UI
+participant "TaskDialog" as Dialog
+participant "TaskFactory" as Factory
+participant "TaskFacade" as Facade
+participant "TaskDatabase" as DB
+participant "TaskObserver" as Observer
+
+User -> UI: add_task()
+UI -> Dialog: open dialog
+User -> Dialog: inform fields
+Dialog -> Dialog: validate fields
+Dialog -> Factory: create(...)
+Factory --> Dialog: Task
+Dialog --> UI: dialog.result
+UI -> Facade: create_task(...)
+Facade -> Factory: create(...)
+Factory --> Facade: Task
+Facade -> DB: insert_task(Task)
+DB --> Facade: task_id
+Facade -> Observer: on_task_event(task_created)
+Facade --> UI: task_id
+UI -> UI: refresh_all()
+@enduml

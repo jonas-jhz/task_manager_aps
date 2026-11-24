@@ -1,0 +1,19 @@
+@startuml
+actor User
+participant "TaskManagerApp" as UI
+participant "TaskFacade" as Facade
+participant "TaskDatabase" as DB
+participant "TaskObserver" as Observer
+
+User -> UI: mark_complete()
+UI -> UI: get_selected_task_id()
+UI -> Facade: complete_task(task_id)
+Facade -> DB: get_task_by_id(task_id)
+DB --> Facade: Task
+Facade -> DB: mark_task_complete(task_id)
+DB --> Facade: success
+Facade -> Observer: on_task_event(task_completed)
+Observer --> Facade: handled
+Facade --> UI: success
+UI -> UI: refresh_all()
+@enduml

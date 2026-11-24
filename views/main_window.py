@@ -14,6 +14,8 @@ from models.category import Category
 from config.settings import Settings
 from utils.data_export import DataExporter
 from utils.validators import TaskValidator
+from application.task_facade import TaskFacade
+from models.task_factory import TaskFactory
 
 logger = logging.getLogger("TaskManager.UI")
 
@@ -30,6 +32,7 @@ class TaskManagerApp:
         # Initialize database
         try:
             self.db = TaskDatabase(db_file)
+            self.task_service = TaskFacade(self.db)
             logger.info("Application started successfully")
         except DatabaseError as e:
             messagebox.showerror("Database Error", f"Failed to initialize database: {e}")
@@ -360,75 +363,80 @@ class TaskManagerApp:
         dialog = TaskDialog(self.root, self.db, "Add Task")
         if dialog.result:
             try:
-                task_id = self.db.insert_task(dialog.result)
+                task_id = self.task_service.create_task(
+                    dialog.result.description,
+                    dialog.result.priority,
+                    dialog.result.category,
+                    dialog.result.due_date,
+                )
                 self.refresh_all()
                 self.update_status(f"Task added successfully (ID: {task_id})")
                 logger.info(f"Task added: {task_id}")
-            except DatabaseError as e:
+            except (DatabaseError, ValueError) as e:
                 messagebox.showerror("Error", f"Failed to add task: {e}")
-    
+
     def edit_task(self):
         """Open dialog to edit selected task."""
         task_id = self.get_selected_task_id()
         if not task_id:
             messagebox.showwarning("No Selection", "Please select a task to edit")
             return
-        
+
         try:
             task = self.db.get_task_by_id(task_id)
             if not task:
                 messagebox.showerror("Error", "Task not found")
                 return
-            
+
             dialog = TaskDialog(self.root, self.db, "Edit Task", task)
             if dialog.result:
-                self.db.update_task(dialog.result)
+                self.task_service.update_task(dialog.result)
                 self.refresh_all()
                 self.update_status(f"Task updated successfully (ID: {task_id})")
                 logger.info(f"Task updated: {task_id}")
         except DatabaseError as e:
             messagebox.showerror("Error", f"Failed to edit task: {e}")
-    
+
     def delete_task(self):
         """Delete selected task."""
         task_id = self.get_selected_task_id()
         if not task_id:
             messagebox.showwarning("No Selection", "Please select a task to delete")
             return
-        
+
         if messagebox.askyesno("Confirm Delete", "Are you sure you want to delete this task?"):
             try:
-                self.db.delete_task(task_id)
+                self.task_service.delete_task(task_id)
                 self.refresh_all()
                 self.update_status(f"Task deleted (ID: {task_id})")
                 logger.info(f"Task deleted: {task_id}")
             except DatabaseError as e:
                 messagebox.showerror("Error", f"Failed to delete task: {e}")
-    
+
     def mark_complete(self):
         """Mark selected task as complete."""
         task_id = self.get_selected_task_id()
         if not task_id:
             messagebox.showwarning("No Selection", "Please select a task to mark complete")
             return
-        
+
         try:
-            self.db.mark_task_complete(task_id)
+            self.task_service.complete_task(task_id)
             self.refresh_all()
             self.update_status(f"Task marked as complete (ID: {task_id})")
             logger.info(f"Task marked complete: {task_id}")
         except DatabaseError as e:
             messagebox.showerror("Error", f"Failed to mark task complete: {e}")
-    
+
     def mark_incomplete(self):
         """Mark selected task as incomplete."""
         task_id = self.get_selected_task_id()
         if not task_id:
             messagebox.showwarning("No Selection", "Please select a task to mark incomplete")
             return
-        
+
         try:
-            self.db.mark_task_incomplete(task_id)
+            self.task_service.incomplete_task(task_id)
             self.refresh_all()
             self.update_status(f"Task marked as incomplete (ID: {task_id})")
             logger.info(f"Task marked incomplete: {task_id}")
@@ -748,12 +756,12 @@ class TaskDialog:
                 self.task.due_date = self.due_date_var.get() if self.due_date_var.get() else None
                 self.result = self.task
             else:
-                # Create new task
-                self.result = Task(
+                # Create new task through the centralized factory
+                self.result = TaskFactory.create(
                     description=self.description_var.get(),
                     priority=self.priority_var.get(),
                     category=self.category_var.get(),
-                    due_date=self.due_date_var.get() if self.due_date_var.get() else None
+                    due_date=self.due_date_var.get() if self.due_date_var.get() else None,
                 )
             
             self.dialog.destroy()

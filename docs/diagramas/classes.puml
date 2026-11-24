@@ -1,0 +1,28 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+class TaskManagerApp
+class TaskDialog
+class TaskDatabase
+class TaskFacade
+class TaskRepository <<Protocol>>
+class TaskObserver <<abstract>>
+class TaskEvent
+class TaskFactory
+class Task
+class Category
+
+TaskManagerApp --> TaskFacade : task_service
+TaskManagerApp --> TaskDatabase : db
+TaskManagerApp --> TaskDialog
+TaskDialog --> TaskFactory : create
+TaskFacade --> TaskRepository
+TaskFacade --> TaskFactory
+TaskFacade o--> TaskObserver
+TaskFacade ..> TaskEvent
+TaskRepository <|.. TaskDatabase
+TaskDatabase --> Task
+TaskDatabase --> Category
+TaskFactory ..> Task
+
+@enduml
